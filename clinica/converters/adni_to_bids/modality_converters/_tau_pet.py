@@ -135,6 +135,10 @@ def _compute_tau_pet_paths(
             tau_qc_subj = tau_qc_subj.drop(columns=["SCANDATE"])
         else:
             tau_qc_subj.rename(columns={"SCANDATE": "EXAMDATE"}, inplace=True)
+        # TAUQC uses upper-case PHASE while get_images_pet expects the mixed-case
+        # "Phase" column. Rename if needed.
+        if "PHASE" in tau_qc_subj.columns and "Phase" not in tau_qc_subj.columns:
+            tau_qc_subj = tau_qc_subj.rename(columns={"PHASE": "Phase"})
         subj_dfs_list = get_images_pet(
             subject=subject,
             pet_qc_subj=tau_qc_subj,
