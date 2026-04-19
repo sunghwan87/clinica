@@ -581,13 +581,35 @@ def create_adni_scans_files(conversion_path: Path, bids_subjs_paths: list[Path])
     conversion_versions = sorted(
         conversion_versions, key=lambda x: int(x.split("v")[1])
     )
-    older_version = conversion_versions[-1]
-    converted_dict = dict()
-    for tsv_path in (conversion_path / older_version).iterdir():
-        modality = tsv_path.name.split("_paths")[0]
-        df = pd.read_csv(conversion_path / older_version / tsv_path, sep="\t")
-        df.set_index(["Subject_ID", "VISCODE"], inplace=True, drop=True)
-        converted_dict[modality] = df
+
+    # Aggregate `<mod>_paths.tsv` across ALL version folders, not just the
+    # most recent one. This is needed when the user runs `clinica convert
+    # adni-to-bids` incrementally for one modality at a time -- otherwise
+    # the newest vN folder only contains paths for the just-converted modality
+    # and lookups for other modalities already present in the BIDS folder
+    # raise KeyError.
+    converted_dict: dict = {}
+    for version in conversion_versions:
+        version_dir = conversion_path / version
+        for tsv_path in version_dir.iterdir():
+            if not tsv_path.name.endswith("_paths.tsv"):
+                continue
+            modality = tsv_path.name.split("_paths")[0]
+            try:
+                df = pd.read_csv(tsv_path, sep="\t")
+                df.set_index(["Subject_ID", "VISCODE"], inplace=True, drop=True)
+            except Exception:
+                continue
+            if modality in converted_dict:
+                # Newer version overrides older rows for same (subject, visit)
+                converted_dict[modality] = pd.concat(
+                    [converted_dict[modality], df]
+                )
+                converted_dict[modality] = converted_dict[modality][
+                    ~converted_dict[modality].index.duplicated(keep="last")
+                ]
+            else:
+                converted_dict[modality] = df
 
     for bids_subject_path in bids_subjs_paths:
         # Create the file
@@ -606,8 +628,25 @@ def create_adni_scans_files(conversion_path: Path, bids_subjs_paths: list[Path])
                 for file in mod.glob("*"):
                     scans_df = pd.DataFrame(index=[0], columns=scans_fields_bids)
                     scans_df["filename"] = path.join(mod.name, file.name)
-                    converted_mod = _find_conversion_mod(file.name)
-                    conversion_df = converted_dict[converted_mod]
+                    try:
+                        converted_mod = _find_conversion_mod(file.name)
+                    except ValueError:
+                        # Unknown suffix; just record filename
+                        scans_df = scans_df.fillna("n/a")
+                        scans_df.to_csv(
+                            scans_tsv, header=False, sep="\t", index=False, encoding="utf-8"
+                        )
+                        continue
+                    conversion_df = converted_dict.get(converted_mod)
+                    if conversion_df is None:
+                        # No conversion_info for this modality (e.g., user ran
+                        # the converter for one modality only). Write filename
+                        # with n/a for other fields and move on.
+                        scans_df = scans_df.fillna("n/a")
+                        scans_df.to_csv(
+                            scans_tsv, header=False, sep="\t", index=False, encoding="utf-8"
+                        )
+                        continue
                     try:
                         scan_id = conversion_df.loc[(subject_id, viscode), "Image_ID"]
                         scans_df["scan_id"] = scan_id
