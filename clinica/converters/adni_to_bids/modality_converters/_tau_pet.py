@@ -125,7 +125,16 @@ def _compute_tau_pet_paths(
         tau_qc_subj = pd.concat(
             [tau_qc2_subj, tau_qc3_subj], axis=0, ignore_index=True, sort=False
         )
-        tau_qc_subj.rename(columns={"SCANDATE": "EXAMDATE"}, inplace=True)
+        # ADNI1/2 TAUQC has EXAMDATE while ADNI3 TAUQC3 has SCANDATE. After concat
+        # both columns may exist; a naive rename would create duplicate EXAMDATE
+        # columns, breaking later scalar comparisons. Consolidate them first.
+        if "EXAMDATE" in tau_qc_subj.columns and "SCANDATE" in tau_qc_subj.columns:
+            tau_qc_subj["EXAMDATE"] = tau_qc_subj["EXAMDATE"].fillna(
+                tau_qc_subj["SCANDATE"]
+            )
+            tau_qc_subj = tau_qc_subj.drop(columns=["SCANDATE"])
+        else:
+            tau_qc_subj.rename(columns={"SCANDATE": "EXAMDATE"}, inplace=True)
         subj_dfs_list = get_images_pet(
             subject=subject,
             pet_qc_subj=tau_qc_subj,
