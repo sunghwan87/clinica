@@ -130,7 +130,7 @@ def compute_fmap_path(
 
     # Selecting only fMRI images that are not Multiband
     mri_list = mri_list[
-        mri_list.SEQUENCE.str.contains("apping")
+        mri_list.SEQUENCE.str.contains("apping", na=False)
     ]  # 'apping' includes all field map scans, but not others
 
     for subj in subjs_list:

@@ -131,7 +131,7 @@ def _compute_fmri_path(
     mri_list = load_clinical_csv(csv_dir, "MRILIST")
 
     # Selecting fMRI images
-    mri_list = mri_list[mri_list.SEQUENCE.str.contains("MRI")]
+    mri_list = mri_list[mri_list.SEQUENCE.str.contains("MRI", na=False)]
     unwanted_sequences = [] if convert_multiband else ["MB"]
     mri_list = mri_list[
         mri_list.SEQUENCE.map(
