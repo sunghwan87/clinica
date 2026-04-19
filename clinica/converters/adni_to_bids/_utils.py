@@ -18,7 +18,35 @@ __all__ = [
     "create_adni_sessions_dict",
     "create_adni_scans_files",
     "paths_to_bids",
+    "_load_mayo_mri_imageqc",
 ]
+
+
+def _load_mayo_mri_imageqc(csv_dir: Path) -> pd.DataFrame:
+    """Load the MAYOADIRL_MRI_IMAGEQC csv, falling back across known filename variants.
+
+    ADNI has distributed this table under several names depending on the snapshot:
+      - MAYOADIRL_MRI_IMAGEQC_05_07_15  (older)
+      - MAYOADIRL_MRI_IMAGEQC_12_08_15  (mid)
+      - MAYOADIRL_MRI_IMAGEQC           (recent, no date suffix)
+    This helper tries each in turn so the converter works regardless of which the
+    user downloaded.
+    """
+    last_error: Optional[Exception] = None
+    for name in (
+        "MAYOADIRL_MRI_IMAGEQC_05_07_15",
+        "MAYOADIRL_MRI_IMAGEQC_12_08_15",
+        "MAYOADIRL_MRI_IMAGEQC",
+    ):
+        try:
+            return load_clinical_csv(csv_dir, name)
+        except (IOError, OSError) as err:
+            last_error = err
+            continue
+    raise IOError(
+        "Could not find any MAYOADIRL_MRI_IMAGEQC csv (tried _05_07_15, _12_08_15, "
+        "and plain). Last error: " + (str(last_error) if last_error else "unknown")
+    )
 
 
 class ADNIStudy(str, Enum):

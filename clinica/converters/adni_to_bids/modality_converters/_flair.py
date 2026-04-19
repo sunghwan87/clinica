@@ -96,16 +96,14 @@ def _compute_flair_paths(
     images : pd.DataFrame
         A dataframe with all the paths to the FLAIR images that will be converted into BIDS.
     """
-    from .._utils import load_clinical_csv
+    from .._utils import _load_mayo_mri_imageqc, load_clinical_csv
     from ._image_path_utils import find_image_path
     from ._visits_utils import visits_to_timepoints
 
     flair_dfs_list = []
     # Loading needed .csv files
     adni_merge = load_clinical_csv(csv_dir, "ADNIMERGE")
-    mayo_mri_qc = load_clinical_csv(
-        csv_dir, "MAYOADIRL_MRI_IMAGEQC_12_08_15"
-    )  # TODO : remove with v>0.11
+    mayo_mri_qc = _load_mayo_mri_imageqc(csv_dir)
     # mayo_mri_qc = load_clinical_csv(csv_dir, "MAYOADIRL_MRI_IMAGEQC_05_07_15") # PR 1627
     mri_list = load_clinical_csv(csv_dir, "MRILIST")
 

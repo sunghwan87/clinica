@@ -109,16 +109,14 @@ def _compute_fmri_path(
     images : pd.DataFrame
         Pandas Dataframe containing the path for each fmri.
     """
-    from .._utils import load_clinical_csv
+    from .._utils import _load_mayo_mri_imageqc, load_clinical_csv
     from ._image_path_utils import find_image_path
     from ._visits_utils import visits_to_timepoints
 
     fmri_dfs_list = []
     fmri_df = _initialize_fmri_df()
     adni_merge = load_clinical_csv(csv_dir, "ADNIMERGE")
-    mayo_mri_qc = load_clinical_csv(
-        csv_dir, "MAYOADIRL_MRI_IMAGEQC_12_08_15"
-    )  # TODO : remove with v>0.11
+    mayo_mri_qc = _load_mayo_mri_imageqc(csv_dir)
     # mayo_mri_qc = load_clinical_csv(csv_dir, "MAYOADIRL_MRI_IMAGEQC_05_07_15") # PR 1627
     mayo_mri_qc = mayo_mri_qc[mayo_mri_qc.series_type == "fMRI"]
     mayo_mri_qc.columns = [x.upper() for x in mayo_mri_qc.columns]
