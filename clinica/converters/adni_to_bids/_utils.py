@@ -172,21 +172,24 @@ def correct_diagnosis_sc_adni3(
     """
     diagnosis_dict = {1: "CN", 2: "MCI", 3: "AD"}
 
-    ### PR 1617
-    # dxsum_df = load_clinical_csv(clinical_data_dir, "DXSUM").set_index(
-    #     ["PTID", "VISCODE2"]
-    # )
-
-    ### TODO : remove next release (>0.11)
-    try:
-        dxsum_df = load_clinical_csv(
-            clinical_data_dir, "DXSUM_PDXCONV_ADNIALL"
-        ).set_index(["PTID", "VISCODE2"])
-    except OSError:
-        dxsum_df = load_clinical_csv(clinical_data_dir, "DXSUM_PDXCONV").set_index(
-            ["PTID", "VISCODE2"]
+    # ADNI has renamed this table over time:
+    #   DXSUM_PDXCONV_ADNIALL  → DXSUM_PDXCONV  → DXSUM
+    # Try them in order. Newer DXSUM may use VISCODE instead of VISCODE2,
+    # so we also fall back on the visit-code column name.
+    dxsum_raw = None
+    for _name in ("DXSUM_PDXCONV_ADNIALL", "DXSUM_PDXCONV", "DXSUM"):
+        try:
+            dxsum_raw = load_clinical_csv(clinical_data_dir, _name)
+            break
+        except (IOError, OSError):
+            continue
+    if dxsum_raw is None:
+        raise IOError(
+            "Could not find any DXSUM csv (tried DXSUM_PDXCONV_ADNIALL, "
+            "DXSUM_PDXCONV, DXSUM). Please check your clinical data folder."
         )
-    ###
+    _viscode_col = "VISCODE2" if "VISCODE2" in dxsum_raw.columns else "VISCODE"
+    dxsum_df = dxsum_raw.set_index(["PTID", _viscode_col])
 
     missing_sc = participants_df[
         participants_df.original_study == ADNIStudy.ADNI3.value
